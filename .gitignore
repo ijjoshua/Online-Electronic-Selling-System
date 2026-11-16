@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.pdb
+appsettings.*.json
+!OnlineElectronicSellingSystem/appsettings.example.json
+OnlineElectronicSellingSystem/appsettings.json

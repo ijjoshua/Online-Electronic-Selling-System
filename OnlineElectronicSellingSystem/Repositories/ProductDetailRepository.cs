@@ -1,0 +1,16 @@
+using MySqlConnector;
+using OnlineElectronicSellingSystem.Data;
+using OnlineElectronicSellingSystem.Models;
+
+namespace OnlineElectronicSellingSystem.Repositories;
+
+public sealed class ProductDetailRepository
+{
+    private readonly Database database;
+    public ProductDetailRepository(Database database)=>this.database=database;
+    public IReadOnlyList<ProductVariantRecord> Variants(){using var c=database.OpenConnection();using var q=new MySqlCommand("SELECT v.id,v.product_id,p.name,v.sku,v.attributes,v.price,v.stock_quantity,v.reorder_level,v.is_active FROM product_variants v JOIN products p ON p.id=v.product_id ORDER BY p.name,v.sku",c);using var r=q.ExecuteReader();var a=new List<ProductVariantRecord>();while(r.Read())a.Add(new ProductVariantRecord{Id=r.GetInt32("id"),ProductId=r.GetInt32("product_id"),ProductName=r.GetString("name"),Sku=r.GetString("sku"),Attributes=r.IsDBNull(r.GetOrdinal("attributes"))?null:r.GetString("attributes"),Price=r.GetDecimal("price"),StockQuantity=r.GetInt32("stock_quantity"),ReorderLevel=r.GetInt32("reorder_level"),IsActive=r.GetBoolean("is_active")});return a;}
+    public IReadOnlyList<ProductSpecificationRecord> Specifications(){using var c=database.OpenConnection();using var q=new MySqlCommand("SELECT ps.id,ps.product_id,p.name,ps.specification_name,ps.specification_value FROM product_specifications ps JOIN products p ON p.id=ps.product_id ORDER BY p.name,ps.specification_name",c);using var r=q.ExecuteReader();var a=new List<ProductSpecificationRecord>();while(r.Read())a.Add(new ProductSpecificationRecord{Id=r.GetInt32("id"),ProductId=r.GetInt32("product_id"),ProductName=r.GetString("name"),SpecificationName=r.GetString("specification_name"),SpecificationValue=r.GetString("specification_value")});return a;}
+    public IReadOnlyList<ProductImageRecord> Images(){using var c=database.OpenConnection();using var q=new MySqlCommand("SELECT pi.id,pi.product_id,p.name,pi.image_url,pi.is_main,pi.display_order FROM product_images pi JOIN products p ON p.id=pi.product_id ORDER BY p.name,pi.display_order",c);using var r=q.ExecuteReader();var a=new List<ProductImageRecord>();while(r.Read())a.Add(new ProductImageRecord{Id=r.GetInt32("id"),ProductId=r.GetInt32("product_id"),ProductName=r.GetString("name"),ImageUrl=r.GetString("image_url"),IsMain=r.GetBoolean("is_main"),DisplayOrder=r.GetInt32("display_order")});return a;}
+    public void AddSpecification(int productId,string name,string value){using var c=database.OpenConnection();using var q=new MySqlCommand("INSERT INTO product_specifications(product_id,specification_name,specification_value) VALUES(@product,@name,@value) ON DUPLICATE KEY UPDATE specification_value=@value",c);q.Parameters.AddWithValue("@product",productId);q.Parameters.AddWithValue("@name",name.Trim());q.Parameters.AddWithValue("@value",value.Trim());q.ExecuteNonQuery();}
+    public void AddImage(int productId,string url,bool main,int order){using var c=database.OpenConnection();using var q=new MySqlCommand("INSERT INTO product_images(product_id,image_url,is_main,display_order) VALUES(@product,@url,@main,@order)",c);q.Parameters.AddWithValue("@product",productId);q.Parameters.AddWithValue("@url",url.Trim());q.Parameters.AddWithValue("@main",main);q.Parameters.AddWithValue("@order",order);q.ExecuteNonQuery();}
+}
