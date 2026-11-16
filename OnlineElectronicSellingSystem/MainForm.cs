@@ -35,6 +35,7 @@ public sealed class MainForm : Form
     private readonly Panel content = new() { Dock = DockStyle.Fill, BackColor = Background, Padding = new Padding(24), AutoScroll = true };
     private readonly Label pageTitle = new() { Dock = DockStyle.Top, Height = 34, AutoEllipsis = true, Font = OessTheme.PageTitleFont, ForeColor = OessTheme.MainText };
     private readonly Label breadcrumb = new() { Dock = DockStyle.Top, Height = 22, AutoEllipsis = true, ForeColor = OessTheme.SecondaryText, Font = OessTheme.SmallFont };
+    private TableLayoutPanel? pageFrame;
 
     public MainForm(User user, Database database)
     {
@@ -174,6 +175,7 @@ public sealed class MainForm : Form
         pageTitle.Text = title;
         breadcrumb.Text = $"Workspace  /  {title}";
         content.Controls.Clear();
+        pageFrame = null;
     }
 
     private static void StylePageControl(Control control)
@@ -326,7 +328,7 @@ public sealed class MainForm : Form
             try { wishlist.Add(currentUser, product.Id); MessageBox.Show("Product added to wishlist.", "OESS", MessageBoxButtons.OK, MessageBoxIcon.Information); }
             catch (Exception ex) { ShowError(ex); }
         };
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadProducts();
+        AddGridPage(grid, toolbar); LoadProducts();
     }
 
     private void ShowProductManagement()
@@ -380,21 +382,60 @@ public sealed class MainForm : Form
             catch (Exception ex) { ShowError(ex); }
         };
         clear.Click += (_, _) => ClearFields();
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadProducts();
+        AddGridPage(grid, toolbar); LoadProducts();
     }
 
     private void AddPageDescription(string description)
     {
-        content.Controls.Add(new Label
+        pageFrame = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Background,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(0),
+            Margin = new Padding(0)
+        };
+        pageFrame.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        pageFrame.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pageFrame.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        pageFrame.Controls.Add(new Label
         {
             Text = description,
-            Dock = DockStyle.Top,
-            MinimumSize = new Size(0, 36),
+            Dock = DockStyle.Fill,
+            MinimumSize = new Size(0, 38),
             AutoSize = true,
             ForeColor = OessTheme.SecondaryText,
             Font = OessTheme.BodyFont,
             Padding = new Padding(4, 2, 12, 10)
-        });
+        }, 0, 0);
+        content.Controls.Add(pageFrame);
+    }
+
+    private void AddPageBody(Control body)
+    {
+        body.Dock = DockStyle.Fill;
+        if (pageFrame is not null)
+        {
+            pageFrame.Controls.Add(body, 0, 1);
+        }
+        else
+        {
+            content.Controls.Add(body);
+        }
+    }
+
+    private void AddGridPage(DataGridView grid, Control toolbar)
+    {
+        var body = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = OessTheme.CardBackground,
+            Padding = new Padding(0)
+        };
+        body.Controls.Add(grid);
+        body.Controls.Add(toolbar);
+        AddPageBody(body);
     }
 
     private void ShowProductDetails()
@@ -410,7 +451,7 @@ public sealed class MainForm : Form
     private void ShowAddresses()
     {
         PreparePage("Addresses"); var grid=CreateGrid(); var recipient=new TextBox{PlaceholderText="Recipient",Width=140};var street=new TextBox{PlaceholderText="Street",Width=180};var city=new TextBox{PlaceholderText="City",Width=110};var region=new TextBox{PlaceholderText="Region",Width=100};var country=new TextBox{PlaceholderText="Country",Width=110};var phone=new TextBox{PlaceholderText="Phone",Width=110};var isDefault=new CheckBox{Text="Default",AutoSize=true};var save=new Button{Text="Add address",AutoSize=true};var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=82,WrapContents=true};toolbar.Controls.AddRange([recipient,street,city,region,country,phone,isDefault,save,refresh]);
-        void LoadAddresses(){try{grid.DataSource=addressController.Addresses(currentUser);}catch(Exception ex){ShowError(ex);}}save.Click+=(_,_)=>{try{addressController.Save(currentUser,new AddressRecord{UserId=currentUser.Id,Recipient=recipient.Text,Street=street.Text,City=city.Text,Region=region.Text,Country=country.Text,Phone=phone.Text,IsDefault=isDefault.Checked});LoadAddresses();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadAddresses();content.Controls.Add(grid);content.Controls.Add(toolbar);LoadAddresses();
+        void LoadAddresses(){try{grid.DataSource=addressController.Addresses(currentUser);}catch(Exception ex){ShowError(ex);}}save.Click+=(_,_)=>{try{addressController.Save(currentUser,new AddressRecord{UserId=currentUser.Id,Recipient=recipient.Text,Street=street.Text,City=city.Text,Region=region.Text,Country=country.Text,Phone=phone.Text,IsDefault=isDefault.Checked});LoadAddresses();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadAddresses();AddGridPage(grid, toolbar);LoadAddresses();
     }
 
     private void ShowCatalogManagement()
@@ -481,7 +522,7 @@ public sealed class MainForm : Form
             catch (Exception ex) { ShowError(ex); }
         };
         refresh.Click += (_, _) => LoadUsers();
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadUsers();
+        AddGridPage(grid, toolbar); LoadUsers();
     }
 
     private void ShowInventory()
@@ -619,7 +660,7 @@ public sealed class MainForm : Form
             if (MessageBox.Show("Place this order now?", "Confirm checkout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
             try { var number = sales.Checkout(currentUser, payment.Text); MessageBox.Show($"Order {number} was created.", "Checkout", MessageBoxButtons.OK, MessageBoxIcon.Information); LoadCart(); } catch (Exception ex) { ShowError(ex); }
         };
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadCart();
+        AddGridPage(grid, toolbar); LoadCart();
     }
 
     private void ShowPayments()
@@ -690,7 +731,7 @@ public sealed class MainForm : Form
             try { shipments.UpdateStatus(currentUser,item.Id,status.Text,tracking.Text,note.Text); LoadShipments(); MessageBox.Show("Shipment updated.", "OESS", MessageBoxButtons.OK, MessageBoxIcon.Information); } catch (Exception ex) { ShowError(ex); }
         };
         refresh.Click += (_, _) => LoadShipments();
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadShipments();
+        AddGridPage(grid, toolbar); LoadShipments();
     }
 
     private void ShowAfterSales()
@@ -851,30 +892,29 @@ public sealed class MainForm : Form
 
     private void ShowNotifications()
     {
-        PreparePage("Notifications"); var grid=CreateGrid(); var refresh=new Button{Text="Refresh",AutoSize=true};var mark=new Button{Text="Mark selected as read",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=48};toolbar.Controls.AddRange([refresh,mark]);void LoadNotifications(){try{grid.DataSource=supportController.Notifications(currentUser);}catch(Exception ex){ShowError(ex);}}refresh.Click+=(_,_)=>LoadNotifications();mark.Click+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is not NotificationRecord n){ShowError(new InvalidOperationException("Select a notification first."));return;}try{supportController.MarkNotification(currentUser,n.Id);LoadNotifications();}catch(Exception ex){ShowError(ex);}};content.Controls.Add(grid);content.Controls.Add(toolbar);LoadNotifications();
-        AddPageDescription("Review system and customer notifications and mark completed items as read.");
+        PreparePage("Notifications"); AddPageDescription("Review system and customer notifications and mark completed items as read."); var grid=CreateGrid(); var refresh=new Button{Text="Refresh",AutoSize=true};var mark=new Button{Text="Mark selected as read",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=48};toolbar.Controls.AddRange([refresh,mark]);void LoadNotifications(){try{grid.DataSource=supportController.Notifications(currentUser);}catch(Exception ex){ShowError(ex);}}refresh.Click+=(_,_)=>LoadNotifications();mark.Click+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is not NotificationRecord n){ShowError(new InvalidOperationException("Select a notification first."));return;}try{supportController.MarkNotification(currentUser,n.Id);LoadNotifications();}catch(Exception ex){ShowError(ex);}};AddGridPage(grid, toolbar);LoadNotifications();
     }
 
     private void ShowSettings()
     {
         PreparePage("Store settings"); var grid=CreateGrid(); var key=new TextBox{PlaceholderText="Setting key",Width=180}; var value=new TextBox{PlaceholderText="Setting value",Width=260}; var save=new Button{Text="Save setting",AutoSize=true}; var refresh=new Button{Text="Refresh",AutoSize=true}; var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=48};toolbar.Controls.AddRange([key,value,save,refresh]);
         AddPageDescription("Manage configurable store settings using the existing database-backed configuration.");
-        void LoadSettings(){try{grid.DataSource=settingsController.All(currentUser);}catch(Exception ex){ShowError(ex);}} grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is StoreSettingRecord s){key.Text=s.SettingKey;value.Text=s.SettingValue??"";}};save.Click+=(_,_)=>{try{settingsController.Save(currentUser,key.Text,value.Text);LoadSettings();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadSettings();content.Controls.Add(grid);content.Controls.Add(toolbar);LoadSettings();
+        void LoadSettings(){try{grid.DataSource=settingsController.All(currentUser);}catch(Exception ex){ShowError(ex);}} grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is StoreSettingRecord s){key.Text=s.SettingKey;value.Text=s.SettingValue??"";}};save.Click+=(_,_)=>{try{settingsController.Save(currentUser,key.Text,value.Text);LoadSettings();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadSettings();AddGridPage(grid, toolbar);LoadSettings();
     }
 
     private void ShowPromotions()
     {
-        PreparePage("Promotions"); var grid=CreateGrid();var name=new TextBox{PlaceholderText="Promotion name",Width=160};var description=new TextBox{PlaceholderText="Description",Width=180};var type=new ComboBox{Width=100,DropDownStyle=ComboBoxStyle.DropDownList};type.Items.AddRange(["Percentage","Fixed"]);type.SelectedIndex=0;var value=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=90};var from=new DateTimePicker{Format=DateTimePickerFormat.Short};var until=new DateTimePicker{Format=DateTimePickerFormat.Short,Value=DateTime.Today.AddDays(30)};var active=new CheckBox{Text="Active",Checked=true,AutoSize=true};var save=new Button{Text="Save promotion",AutoSize=true};var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=82,WrapContents=true};toolbar.Controls.AddRange([name,description,type,value,from,until,active,save,refresh]);void LoadPromotions(){try{grid.DataSource=promotionController.All(currentUser);}catch(Exception ex){ShowError(ex);}}grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is PromotionRecord p){name.Text=p.Name;description.Text=p.Description??"";type.Text=p.DiscountType;value.Value=p.DiscountValue;from.Value=p.ValidFrom;until.Value=p.ValidUntil;active.Checked=p.IsActive;}};save.Click+=(_,_)=>{try{promotionController.Save(currentUser,new PromotionRecord{Name=name.Text,Description=description.Text,DiscountType=type.Text,DiscountValue=value.Value,ValidFrom=from.Value,ValidUntil=until.Value,IsActive=active.Checked});LoadPromotions();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadPromotions();content.Controls.Add(grid);content.Controls.Add(toolbar);LoadPromotions();
+        PreparePage("Promotions"); var grid=CreateGrid();var name=new TextBox{PlaceholderText="Promotion name",Width=160};var description=new TextBox{PlaceholderText="Description",Width=180};var type=new ComboBox{Width=100,DropDownStyle=ComboBoxStyle.DropDownList};type.Items.AddRange(["Percentage","Fixed"]);type.SelectedIndex=0;var value=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=90};var from=new DateTimePicker{Format=DateTimePickerFormat.Short};var until=new DateTimePicker{Format=DateTimePickerFormat.Short,Value=DateTime.Today.AddDays(30)};var active=new CheckBox{Text="Active",Checked=true,AutoSize=true};var save=new Button{Text="Save promotion",AutoSize=true};var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=82,WrapContents=true};toolbar.Controls.AddRange([name,description,type,value,from,until,active,save,refresh]);void LoadPromotions(){try{grid.DataSource=promotionController.All(currentUser);}catch(Exception ex){ShowError(ex);}}grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is PromotionRecord p){name.Text=p.Name;description.Text=p.Description??"";type.Text=p.DiscountType;value.Value=p.DiscountValue;from.Value=p.ValidFrom;until.Value=p.ValidUntil;active.Checked=p.IsActive;}};save.Click+=(_,_)=>{try{promotionController.Save(currentUser,new PromotionRecord{Name=name.Text,Description=description.Text,DiscountType=type.Text,DiscountValue=value.Value,ValidFrom=from.Value,ValidUntil=until.Value,IsActive=active.Checked});LoadPromotions();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadPromotions();AddGridPage(grid, toolbar);LoadPromotions();
     }
 
     private void ShowCoupons()
     {
-        PreparePage("Coupons"); var grid=CreateGrid();var code=new TextBox{PlaceholderText="Coupon code",Width=130};var type=new ComboBox{Width=100,DropDownStyle=ComboBoxStyle.DropDownList};type.Items.AddRange(["Percentage","Fixed"]);type.SelectedIndex=0;var value=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=85};var minimum=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=90};var limit=new NumericUpDown{Minimum=0,Maximum=100000000,Width=80};var from=new DateTimePicker{Format=DateTimePickerFormat.Short};var until=new DateTimePicker{Format=DateTimePickerFormat.Short,Value=DateTime.Today.AddDays(30)};var active=new CheckBox{Text="Active",Checked=true,AutoSize=true};var save=new Button{Text="Save coupon",AutoSize=true};var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=82,WrapContents=true};toolbar.Controls.AddRange([code,type,value,minimum,limit,from,until,active,save,refresh]);void LoadCoupons(){try{grid.DataSource=couponController.All(currentUser);}catch(Exception ex){ShowError(ex);}}grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is CouponManagementRecord c){code.Text=c.Code;type.Text=c.DiscountType;value.Value=c.Value;minimum.Value=c.MinimumOrderAmount;limit.Value=c.UsageLimit??0;from.Value=c.ValidFrom;until.Value=c.ValidUntil;active.Checked=c.IsActive;}};save.Click+=(_,_)=>{try{couponController.Save(currentUser,new CouponManagementRecord{Code=code.Text,DiscountType=type.Text,Value=value.Value,MinimumOrderAmount=minimum.Value,UsageLimit=limit.Value==0?null:(int?)limit.Value,ValidFrom=from.Value,ValidUntil=until.Value,IsActive=active.Checked});LoadCoupons();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadCoupons();content.Controls.Add(grid);content.Controls.Add(toolbar);LoadCoupons();
+        PreparePage("Coupons"); var grid=CreateGrid();var code=new TextBox{PlaceholderText="Coupon code",Width=130};var type=new ComboBox{Width=100,DropDownStyle=ComboBoxStyle.DropDownList};type.Items.AddRange(["Percentage","Fixed"]);type.SelectedIndex=0;var value=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=85};var minimum=new NumericUpDown{Maximum=10000000,DecimalPlaces=2,Width=90};var limit=new NumericUpDown{Minimum=0,Maximum=100000000,Width=80};var from=new DateTimePicker{Format=DateTimePickerFormat.Short};var until=new DateTimePicker{Format=DateTimePickerFormat.Short,Value=DateTime.Today.AddDays(30)};var active=new CheckBox{Text="Active",Checked=true,AutoSize=true};var save=new Button{Text="Save coupon",AutoSize=true};var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=82,WrapContents=true};toolbar.Controls.AddRange([code,type,value,minimum,limit,from,until,active,save,refresh]);void LoadCoupons(){try{grid.DataSource=couponController.All(currentUser);}catch(Exception ex){ShowError(ex);}}grid.SelectionChanged+=(_,_)=>{if(grid.CurrentRow?.DataBoundItem is CouponManagementRecord c){code.Text=c.Code;type.Text=c.DiscountType;value.Value=c.Value;minimum.Value=c.MinimumOrderAmount;limit.Value=c.UsageLimit??0;from.Value=c.ValidFrom;until.Value=c.ValidUntil;active.Checked=c.IsActive;}};save.Click+=(_,_)=>{try{couponController.Save(currentUser,new CouponManagementRecord{Code=code.Text,DiscountType=type.Text,Value=value.Value,MinimumOrderAmount=minimum.Value,UsageLimit=limit.Value==0?null:(int?)limit.Value,ValidFrom=from.Value,ValidUntil=until.Value,IsActive=active.Checked});LoadCoupons();}catch(Exception ex){ShowError(ex);}};refresh.Click+=(_,_)=>LoadCoupons();AddGridPage(grid, toolbar);LoadCoupons();
     }
 
     private void ShowAuditLogs()
     {
-        PreparePage("Audit logs"); var grid=CreateGrid();var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=48};toolbar.Controls.Add(refresh);void LoadLogs(){try{grid.DataSource=advancedController.AuditLogs(currentUser);}catch(Exception ex){ShowError(ex);}}refresh.Click+=(_,_)=>LoadLogs();content.Controls.Add(grid);content.Controls.Add(toolbar);LoadLogs();
+        PreparePage("Audit logs"); var grid=CreateGrid();var refresh=new Button{Text="Refresh",AutoSize=true};var toolbar=new FlowLayoutPanel{Dock=DockStyle.Top,Height=48};toolbar.Controls.Add(refresh);void LoadLogs(){try{grid.DataSource=advancedController.AuditLogs(currentUser);}catch(Exception ex){ShowError(ex);}}refresh.Click+=(_,_)=>LoadLogs();AddGridPage(grid, toolbar);LoadLogs();
     }
 
     private void ShowWishlist()
@@ -900,7 +940,7 @@ public sealed class MainForm : Form
             catch (Exception ex) { ShowError(ex); }
         };
         refresh.Click += (_, _) => LoadItems();
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadItems();
+        AddGridPage(grid, toolbar); LoadItems();
     }
 
     private void ShowOrders()
@@ -913,7 +953,7 @@ public sealed class MainForm : Form
         grid.SelectionChanged += (_, _) => { if (grid.CurrentRow?.DataBoundItem is OrderSummary item) status.Text = item.Status; };
         refresh.Click += (_, _) => LoadOrders();
         update.Click += (_, _) => { if (grid.CurrentRow?.DataBoundItem is not OrderSummary item) { ShowError(new InvalidOperationException("Select an order first.")); return; } try { sales.UpdateOrderStatus(currentUser, item.Id, status.Text); LoadOrders(); } catch (Exception ex) { ShowError(ex); } };
-        content.Controls.Add(grid); content.Controls.Add(toolbar); LoadOrders();
+        AddGridPage(grid, toolbar); LoadOrders();
     }
     private void ShowReports() => ShowReportsPage();
     private void ShowMessagePage(string title, string message) { PreparePage(title); content.Controls.Add(new Label { Text = message, AutoSize = true, Font = new Font("Segoe UI", 12), ForeColor = Color.DimGray }); }
